@@ -1,0 +1,324 @@
+{%- extends "base.html" %}
+{%- block title %}Room Scheduler{%- endblock title %}
+
+{%- block css %}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar-scheduler@5.2.0/main.min.css" integrity="sha256-LOn2s1oZo044zPt6G3x2mGJnhtfXp6ZE1skHztfqnA8=" crossorigin="anonymous">
+    {{ super() }}
+{%- endblock %}
+
+{%- block content %}
+<div class="my-4">Click and drag on the calendar to create a reservation for yourself. The title of your reservation will be your UNI, visible to all graduate students. Drag or resize an existing reservation to modify it. To delete an event, see the table at the bottom of the page.</div>
+
+<script>
+
+    // if(window.innerHeight > window.innerWidth){
+    //     alert("Please use Landscape!");
+    // }
+
+    // window.addEventListener('orientationchange', function() {
+    //     alert(window.orientation);
+    // }, false);
+
+    function isOverlapping(events, eventToCheck) {
+        /*
+        Checks if `eventToCheck` overlaps with any events in `events`.
+        Modified from: https://github.com/fullcalendar/fullcalendar/issues/4849#issuecomment-452583317
+        */
+
+        const resourceID = eventToCheck.resource.id;
+        const startMoment = moment(eventToCheck.start);
+        const endMoment = moment(eventToCheck.end);
+
+        try {
+
+            for (let i = 0; i < events.length; i++) {
+
+                const eventA = events[i];
+                const eventAStart = moment(eventA.start);
+                const eventAEnd = moment(eventA.end);
+
+                // Start-time in between any of the events
+                if (moment(startMoment).isAfter(eventAStart) && moment(startMoment).isBefore(eventAEnd)) {
+                    return true;
+                }
+
+                // End-time in between any of the events
+                if (moment(endMoment).isAfter(eventAStart) && moment(endMoment).isBefore(eventAEnd)) {
+                    return true;
+                }
+
+                // Any of the events in between/on the start-time and end-time
+                if (moment(startMoment).isSameOrBefore(eventAStart) && moment(endMoment).isSameOrAfter(eventAEnd)) {
+                    return true;
+                }
+
+            }
+
+            return false;
+
+        } catch (error) {
+            console.error(error);
+            throw error;
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+
+        var calendarEl = document.getElementById('calendar');
+        var calendar = new FullCalendar.Calendar(calendarEl, {
+            // themeSystem: 'standard',
+            aspectRatio: 1.7,
+            editable: true,
+            selectable: true,
+            nowIndicator: true,
+            themeSystem: 'bootstrap',
+            timeZone: 'local',
+            headerToolbar: {
+                left: 'today prev,next',
+                center: 'title',
+                right: 'resourceTimelineDay,resourceTimelineWeek'
+            },
+            initialView: 'resourceTimelineDay',
+            resourceAreaHeaderContent: 'Room',
+            resourceGroupField: 'room',
+            // resourcesInitiallyExpanded: false,
+            resourceAreaWidth: '20%',
+            resources: {
+                url: 'resource_data',
+			},
+			events: {
+				url: 'event_data',
+			},
+            eventOverlap: false,
+
+            eventDrop: function(info) {  // Triggered when dragging stops and the event has moved to a different day/time.
+
+                const startTime = new Date(info.event.startStr).toLocaleString()
+                const endTime = new Date(info.event.endStr).toLocaleString()
+
+                if (info.oldResource) {
+                    var confirmation_message = 'Modify reservation to ' + info.newResource.extendedProps.room + ' ' 
+                                               + info.newResource.title + ' from ' + startTime + ' to ' + endTime + '?';
+
+                    var payload = {
+                        PK: info.event.extendedProps.PK,
+                        SK: info.event.extendedProps.SK,
+                        uni: info.event.extendedProps.uni,
+                        start: info.event.startStr,
+                        end: info.event.endStr,
+                        newResourceId: info.newResource.id,
+                        newResourceName: info.newResource.extendedProps.room + ' - ' + info.newResource.title
+                    }
+                } else {
+                    var confirmation_message = 'Modify reservation to the same locaiton but from ' + startTime 
+                    + ' to ' + endTime + '?';
+                    
+                    var payload = {
+                        PK: info.event.extendedProps.PK,
+                        SK: info.event.extendedProps.SK,
+                        uni: info.event.extendedProps.uni,
+                        start: info.event.startStr,
+                        end: info.event.endStr,
+                    }
+                }
+
+                if (confirm(confirmation_message)) {
+
+                    $.ajax({
+                        type: 'POST',
+                        url: ('event_drop'),
+                        contentType: 'application/json;charset=UTF-8',
+                        data: JSON.stringify(payload),
+                        // success: function (data) {
+                        //     alert(data);
+                        // },
+                        error: function (xhr, status, error) {
+                            alert(xhr.responseText);
+                        },
+                    });
+
+                } else {
+                    info.revert();
+                }
+            },
+
+            eventResize: function(info) {  // Triggered when resizing stops and the event has changed in duration
+
+                const startTime = new Date(info.event.startStr).toLocaleString()
+                const endTime = new Date(info.event.endStr).toLocaleString()
+
+                var confirmation_message = 'Modify reservation to the same locaiton but from ' + startTime 
+                + ' to ' + endTime + '?';
+                
+                var payload = {
+                    PK: info.event.extendedProps.PK,
+                    SK: info.event.extendedProps.SK,
+                    uni: info.event.extendedProps.uni,
+                    start: info.event.startStr,
+                    end: info.event.endStr,
+                }
+
+                if (confirm(confirmation_message)) {
+
+                    $.ajax({
+                        type: 'POST',
+                        url: ('event_drop'),
+                        contentType: 'application/json;charset=UTF-8',
+                        data: JSON.stringify(payload),
+                        // success: function (data) {
+                        //     alert(data);
+                        // },
+                        error: function (xhr, status, error) {
+                            alert(xhr.responseText);
+                        },
+                    });
+
+                } else {
+                    info.revert();
+                }
+            },
+
+            select: function(info) {  // Triggered when a date/time selection is made.
+
+                // Check if the selected event overlaps with any existing events in the same resource
+                if (isOverlapping(info.resource.getEvents(), info)) {
+                    alert('Cannot overlap with other reservations or blocked off times.')
+                } else {
+
+                    const startTime = new Date(info.startStr).toLocaleString()
+                    const endTime = new Date(info.endStr).toLocaleString()
+
+                    if (confirm(
+                        'Create a reservation in ' 
+                        + info.resource.extendedProps.room
+                        + ' ' 
+                        + info.resource.title
+                        + ' from '
+                        + startTime
+                        + ' to '
+                        + endTime
+                        + '?')
+                    ) {
+                        
+                        $.ajax({
+                            type: 'POST',
+                            url: ('event_select'),
+                            contentType: 'application/json;charset=UTF-8',
+                            data: JSON.stringify({
+                                start: info.startStr,
+                                end: info.endStr,
+                                resourceId: info.resource.id,
+                                resourceName: info.resource.extendedProps.room + ' - ' + info.resource.title
+                            }),
+
+                            success: function (data) {
+                                // Refresh calendar on success
+                                // Can also reload page with location.reload(); if the reservation history needs to be refreshed
+                                calendar.refetchEvents();
+                            },
+
+                            error: function (xhr, status, error) {
+                                alert(xhr.responseText);
+                            },
+
+                        });
+
+                    } else {
+                        calendar.refetchEvents();
+                    }
+                }
+            },
+
+            // eventClick: function(info) { // Triggered when the user clicks an event.
+            //     console.log('Event: ' + info.event.title);
+            //     console.log('Coordinates: ' + info.jsEvent.pageX + ',' + info.jsEvent.pageY);
+            //     console.log('View: ' + info.view.type);
+
+            //     $(info.el).popover({
+            //         placement: 'top',
+            //         trigger: 'focus',
+            //         content: 'Delete?',
+            //     }).popover('toggle');
+            // }
+
+            // eventDidMount: function(info) {
+            //     $(info.el).append("<span class='calendar-removebtn'></span>");
+            //     console.log($(info.el).find(".calendar-removebtn"));
+            //     // $(info.el).find("span").click(function() {
+            //     //     // $('#calendar').fullCalendar('removeEvents',event._id);
+            //     //     console.log("test");
+            //     //     alert('Button clicked');
+
+            //     // });
+            //     $(info.el).find(".calendar-removebtn").on('click', function () {
+            //         alert('Button clicked');
+            //     });
+            // },
+
+            // $(info.el).append("<span class='fa fa-times-circle calendar-removebtn'></span>");
+            // eventMouseEnter: function(info) {
+            //     $(info.el).append("<span class='removebtn'>X</span>");
+            //     console.log($(info.el).find("span"));
+            //     $(info.el).find("span").click(function() {
+            //         // $('#calendar').fullCalendar('removeEvents',event._id);
+            //         console.log("test");
+            //         alert('Button clicked');
+            //     });
+            // },
+
+        //     eventMouseLeave: function(info) {
+        //         $(info.el).find(".removebtn").remove();
+        //     }
+
+        });
+
+
+        calendar.render();
+    });
+
+</script>
+
+<div id="calendar"></div>
+
+<h5 class="text-info my-4">Reservation History:</h3>
+<table class="table table-hover">
+    <thead>
+        <tr>
+        <th scope="col">Location</th>
+        <th scope="col">Start</th>
+        <th scope="col">End</th>
+        <th scope="col"></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for e in events %}
+        <tr>        
+            <th scope="row" {% if not e['active'] %} class='text-muted font-italic' {% endif %}>{{ e['resourceName'] }}</th>
+            <td {% if not e['active'] %} class='text-muted font-italic' {% endif %}>{{ e['start'] | datetime_utc_to_est }}</td>
+            <td {% if not e['active'] %} class='text-muted font-italic' {% endif %}>{{ e['end'] | datetime_utc_to_est }}</td>
+            {% if e['active'] %}
+            <td class="text-center">
+                <form class="download-form" action="{{ url_for('scheduler.event_delete') }}" method="POST">
+                    <input type="hidden" name="PK" value="{{ e['PK'] | serialize }}">
+                    <input type="hidden" name="SK" value="{{ e['SK'] | serialize }}">
+                    <button type="submit" class="btn btn-danger btn-sm">
+                      <i class="fa fa-trash-o fa-lg"></i>
+                    </button>
+                </form>
+            </td>
+            {% else %}
+            <td class="text-center text-muted font-italic">Deleted</td>
+            {% endif %}
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{%- endblock %}
+
+{%- block scripts %}
+    {{ super() }}
+    <script src="https://cdn.jsdelivr.net/npm/moment@2.27.0/moment.js" integrity="sha256-QTriwEK1XTUJdKp3So7tMDUvZSTLOPpUv8F/J+UwJ8M=" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar-scheduler@5.2.0/main.min.js" integrity="sha256-U+VlpMlWIzzE74RY4mZL4MixQg66XWfjEWW2VUxHgcE=" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/moment@5.2.0/main.global.min.js" integrity="sha256-7WNMw3NoYwwtQzbvaebEKKhPHwqVf3kKGfSHTf18qdg=" crossorigin="anonymous"></script>
+{%- endblock %}
+
