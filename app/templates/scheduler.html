@@ -130,9 +130,9 @@
                         url: ('event_drop'),
                         contentType: 'application/json;charset=UTF-8',
                         data: JSON.stringify(payload),
-                        // success: function (data) {
-                        //     alert(data);
-                        // },
+                        success: function (data) {
+                            calendar.refetchEvents();
+                        },
                         error: function (xhr, status, error) {
                             alert(xhr.responseText);
                         },
@@ -140,6 +140,7 @@
 
                 } else {
                     info.revert();
+                    calendar.refetchEvents();
                 }
             },
 
@@ -149,7 +150,7 @@
                 const endTime = new Date(info.event.endStr).toLocaleString()
 
                 var confirmation_message = 'Modify reservation to the same locaiton but from ' + startTime 
-                + ' to ' + endTime + '?';
+                                           + ' to ' + endTime + '?';
                 
                 var payload = {
                     PK: info.event.extendedProps.PK,
@@ -166,9 +167,9 @@
                         url: ('event_drop'),
                         contentType: 'application/json;charset=UTF-8',
                         data: JSON.stringify(payload),
-                        // success: function (data) {
-                        //     alert(data);
-                        // },
+                        success: function (data) {
+                            calendar.refetchEvents();
+                        },
                         error: function (xhr, status, error) {
                             alert(xhr.responseText);
                         },
@@ -176,6 +177,7 @@
 
                 } else {
                     info.revert();
+                    calendar.refetchEvents();
                 }
             },
 
@@ -189,17 +191,10 @@
                     const startTime = new Date(info.startStr).toLocaleString()
                     const endTime = new Date(info.endStr).toLocaleString()
 
-                    if (confirm(
-                        'Create a reservation in ' 
-                        + info.resource.extendedProps.room
-                        + ' ' 
-                        + info.resource.title
-                        + ' from '
-                        + startTime
-                        + ' to '
-                        + endTime
-                        + '?')
-                    ) {
+                    var confirmation_message = 'Create a reservation in ' + info.resource.extendedProps.room + ' ' 
+                                               + info.resource.title + ' from ' + startTime + ' to ' + endTime + '?';
+
+                    if (confirm(confirmation_message)) {
                         
                         $.ajax({
                             type: 'POST',
