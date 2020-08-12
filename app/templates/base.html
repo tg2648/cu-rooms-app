@@ -3,14 +3,13 @@
 <head>
 {%- block head %}
 {%- if config['ENV'] == 'prod' %}
-<!-- Global site tag (gtag.js) - Google Analytics -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=UA-145333546-1"></script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-145333546-3"></script>
 <script>
-window.dataLayer = window.dataLayer || [];
-function gtag(){dataLayer.push(arguments);}
-gtag('js', new Date());
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
 
-gtag('config', 'UA-145333546-1');
+  gtag('config', 'UA-145333546-3');
 </script>
 {%- endif %}
 <title>{%- block title %}A&S Reporting{%- endblock title %}</title>
