@@ -67,7 +67,6 @@
         var calendarEl = document.getElementById('calendar');
         var calendar = new FullCalendar.Calendar(calendarEl, {
             schedulerLicenseKey: '0320620453-fcs-1597083069',
-            // themeSystem: 'standard',
             aspectRatio: 1.7,
             editable: true,
             selectable: true,
@@ -82,7 +81,6 @@
             initialView: 'resourceTimelineDay',
             resourceAreaHeaderContent: 'Room',
             resourceGroupField: 'room',
-            // resourcesInitiallyExpanded: false,
             resourceAreaWidth: '20%',
             resources: {
                 url: 'resource_data',
@@ -91,66 +89,118 @@
 				url: 'event_data',
 			},
             eventOverlap: false,
+        });
 
-            eventDrop: function(info) {  // Triggered when dragging stops and the event has moved to a different day/time.
+        /*
+        Callback that is triggered when a date/time selection is made.
+        */
+        calendar.on('select', function(info) {
+            // Check if the selected event overlaps with any existing events in the same resource
+            if (isOverlapping(info.resource.getEvents(), info)) {
+                alert('Cannot overlap with other reservations or blocked off times.')
+            } else {
 
-                const startTime = new Date(info.event.startStr).toLocaleString()
-                const endTime = new Date(info.event.endStr).toLocaleString()
+                const startTime = new Date(info.startStr).toLocaleString()
+                const endTime = new Date(info.endStr).toLocaleString()
 
-                if (info.oldResource) {
-                    var confirmation_message = 'Modify reservation to ' + info.newResource.extendedProps.room + ' ' 
-                                               + info.newResource.title + ' from ' + startTime + ' to ' + endTime + '?';
-
-                    var payload = {
-                        PK: info.event.extendedProps.PK,
-                        SK: info.event.extendedProps.SK,
-                        uni: info.event.extendedProps.uni,
-                        start: info.event.startStr,
-                        end: info.event.endStr,
-                        newResourceId: info.newResource.id,
-                        newResourceName: info.newResource.extendedProps.room + ' - ' + info.newResource.title
-                    }
-                } else {
-                    var confirmation_message = 'Modify reservation to the same locaiton but from ' + startTime 
-                    + ' to ' + endTime + '?';
-                    
-                    var payload = {
-                        PK: info.event.extendedProps.PK,
-                        SK: info.event.extendedProps.SK,
-                        uni: info.event.extendedProps.uni,
-                        start: info.event.startStr,
-                        end: info.event.endStr,
-                    }
-                }
+                var confirmation_message = 'Create a reservation in ' + info.resource.extendedProps.room + ' ' 
+                                            + info.resource.title + ' from ' + startTime + ' to ' + endTime + '?';
 
                 if (confirm(confirmation_message)) {
-
+                    
                     $.ajax({
                         type: 'POST',
-                        url: ('event_drop'),
+                        url: ('event_select'),
                         contentType: 'application/json;charset=UTF-8',
-                        data: JSON.stringify(payload),
+                        data: JSON.stringify({
+                            start: info.startStr,
+                            end: info.endStr,
+                            resourceId: info.resource.id,
+                            resourceName: info.resource.extendedProps.room + ' - ' + info.resource.title
+                        }),
+
                         success: function (data) {
+                            // Refresh calendar on success
+                            // Can also reload page with location.reload(); if the reservation history needs to be refreshed
                             calendar.refetchEvents();
                         },
+
                         error: function (xhr, status, error) {
                             alert(xhr.responseText);
                         },
+
                     });
 
                 } else {
-                    info.revert();
                     calendar.refetchEvents();
                 }
-            },
+            }
+        });
+        
+        /*
+        Callback that is triggered when resizing stops and the event has changed in duration.
+        */
+        calendar.on('eventResize', function(info) {
 
-            eventResize: function(info) {  // Triggered when resizing stops and the event has changed in duration
+            const startTime = new Date(info.event.startStr).toLocaleString()
+            const endTime = new Date(info.event.endStr).toLocaleString()
 
-                const startTime = new Date(info.event.startStr).toLocaleString()
-                const endTime = new Date(info.event.endStr).toLocaleString()
+            var confirmation_message = 'Modify reservation to the same locaiton but from ' + startTime 
+                                        + ' to ' + endTime + '?';
+            
+            var payload = {
+                PK: info.event.extendedProps.PK,
+                SK: info.event.extendedProps.SK,
+                uni: info.event.extendedProps.uni,
+                start: info.event.startStr,
+                end: info.event.endStr,
+            }
 
+            if (confirm(confirmation_message)) {
+
+                $.ajax({
+                    type: 'POST',
+                    url: ('event_drop'),
+                    contentType: 'application/json;charset=UTF-8',
+                    data: JSON.stringify(payload),
+                    success: function (data) {
+                        calendar.refetchEvents();
+                    },
+                    error: function (xhr, status, error) {
+                        alert(xhr.responseText);
+                    },
+                });
+
+            } else {
+                info.revert();
+                calendar.refetchEvents();
+            }
+        })
+
+        /*
+        Callback that is triggered when dragging stops and the event has moved to a different day/time.
+        */
+        calendar.on('eventDrop', function(info) {
+
+            const startTime = new Date(info.event.startStr).toLocaleString()
+            const endTime = new Date(info.event.endStr).toLocaleString()
+
+            if (info.oldResource) {
+                var confirmation_message = 'Modify reservation to ' + info.newResource.extendedProps.room + ' ' 
+                                            + info.newResource.title + ' from ' + startTime + ' to ' + endTime + '?';
+
+                var payload = {
+                    PK: info.event.extendedProps.PK,
+                    SK: info.event.extendedProps.SK,
+                    uni: info.event.extendedProps.uni,
+                    start: info.event.startStr,
+                    end: info.event.endStr,
+                    newResourceId: info.newResource.id,
+                    newResourceName: info.newResource.extendedProps.room + ' - ' + info.newResource.title
+                }
+            } else {
                 var confirmation_message = 'Modify reservation to the same locaiton but from ' + startTime 
-                                           + ' to ' + endTime + '?';
+                + ' to ' + endTime + '?';
                 
                 var payload = {
                     PK: info.event.extendedProps.PK,
@@ -159,115 +209,28 @@
                     start: info.event.startStr,
                     end: info.event.endStr,
                 }
+            }
 
-                if (confirm(confirmation_message)) {
+            if (confirm(confirmation_message)) {
 
-                    $.ajax({
-                        type: 'POST',
-                        url: ('event_drop'),
-                        contentType: 'application/json;charset=UTF-8',
-                        data: JSON.stringify(payload),
-                        success: function (data) {
-                            calendar.refetchEvents();
-                        },
-                        error: function (xhr, status, error) {
-                            alert(xhr.responseText);
-                        },
-                    });
-
-                } else {
-                    info.revert();
-                    calendar.refetchEvents();
-                }
-            },
-
-            select: function(info) {  // Triggered when a date/time selection is made.
-
-                // Check if the selected event overlaps with any existing events in the same resource
-                if (isOverlapping(info.resource.getEvents(), info)) {
-                    alert('Cannot overlap with other reservations or blocked off times.')
-                } else {
-
-                    const startTime = new Date(info.startStr).toLocaleString()
-                    const endTime = new Date(info.endStr).toLocaleString()
-
-                    var confirmation_message = 'Create a reservation in ' + info.resource.extendedProps.room + ' ' 
-                                               + info.resource.title + ' from ' + startTime + ' to ' + endTime + '?';
-
-                    if (confirm(confirmation_message)) {
-                        
-                        $.ajax({
-                            type: 'POST',
-                            url: ('event_select'),
-                            contentType: 'application/json;charset=UTF-8',
-                            data: JSON.stringify({
-                                start: info.startStr,
-                                end: info.endStr,
-                                resourceId: info.resource.id,
-                                resourceName: info.resource.extendedProps.room + ' - ' + info.resource.title
-                            }),
-
-                            success: function (data) {
-                                // Refresh calendar on success
-                                // Can also reload page with location.reload(); if the reservation history needs to be refreshed
-                                calendar.refetchEvents();
-                            },
-
-                            error: function (xhr, status, error) {
-                                alert(xhr.responseText);
-                            },
-
-                        });
-
-                    } else {
+                $.ajax({
+                    type: 'POST',
+                    url: ('event_drop'),
+                    contentType: 'application/json;charset=UTF-8',
+                    data: JSON.stringify(payload),
+                    success: function (data) {
                         calendar.refetchEvents();
-                    }
-                }
-            },
+                    },
+                    error: function (xhr, status, error) {
+                        alert(xhr.responseText);
+                    },
+                });
 
-            // eventClick: function(info) { // Triggered when the user clicks an event.
-            //     console.log('Event: ' + info.event.title);
-            //     console.log('Coordinates: ' + info.jsEvent.pageX + ',' + info.jsEvent.pageY);
-            //     console.log('View: ' + info.view.type);
-
-            //     $(info.el).popover({
-            //         placement: 'top',
-            //         trigger: 'focus',
-            //         content: 'Delete?',
-            //     }).popover('toggle');
-            // }
-
-            // eventDidMount: function(info) {
-            //     $(info.el).append("<span class='calendar-removebtn'></span>");
-            //     console.log($(info.el).find(".calendar-removebtn"));
-            //     // $(info.el).find("span").click(function() {
-            //     //     // $('#calendar').fullCalendar('removeEvents',event._id);
-            //     //     console.log("test");
-            //     //     alert('Button clicked');
-
-            //     // });
-            //     $(info.el).find(".calendar-removebtn").on('click', function () {
-            //         alert('Button clicked');
-            //     });
-            // },
-
-            // $(info.el).append("<span class='fa fa-times-circle calendar-removebtn'></span>");
-            // eventMouseEnter: function(info) {
-            //     $(info.el).append("<span class='removebtn'>X</span>");
-            //     console.log($(info.el).find("span"));
-            //     $(info.el).find("span").click(function() {
-            //         // $('#calendar').fullCalendar('removeEvents',event._id);
-            //         console.log("test");
-            //         alert('Button clicked');
-            //     });
-            // },
-
-        //     eventMouseLeave: function(info) {
-        //         $(info.el).find(".removebtn").remove();
-        //     }
-
-        });
-
+            } else {
+                info.revert();
+                calendar.refetchEvents();
+            }
+        })
 
         calendar.render();
     });
@@ -318,3 +281,43 @@
     <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/moment@5.2.0/main.global.min.js" integrity="sha256-7WNMw3NoYwwtQzbvaebEKKhPHwqVf3kKGfSHTf18qdg=" crossorigin="anonymous"></script>
 {%- endblock %}
 
+<!-- // eventClick: function(info) { // Triggered when the user clicks an event.
+    //     console.log('Event: ' + info.event.title);
+    //     console.log('Coordinates: ' + info.jsEvent.pageX + ',' + info.jsEvent.pageY);
+    //     console.log('View: ' + info.view.type);
+
+    //     $(info.el).popover({
+    //         placement: 'top',
+    //         trigger: 'focus',
+    //         content: 'Delete?',
+    //     }).popover('toggle');
+    // }
+
+    // eventDidMount: function(info) {
+    //     $(info.el).append("<span class='calendar-removebtn'></span>");
+    //     console.log($(info.el).find(".calendar-removebtn"));
+    //     // $(info.el).find("span").click(function() {
+    //     //     // $('#calendar').fullCalendar('removeEvents',event._id);
+    //     //     console.log("test");
+    //     //     alert('Button clicked');
+
+    //     // });
+    //     $(info.el).find(".calendar-removebtn").on('click', function () {
+    //         alert('Button clicked');
+    //     });
+    // },
+
+    // $(info.el).append("<span class='fa fa-times-circle calendar-removebtn'></span>");
+    // eventMouseEnter: function(info) {
+    //     $(info.el).append("<span class='removebtn'>X</span>");
+    //     console.log($(info.el).find("span"));
+    //     $(info.el).find("span").click(function() {
+    //         // $('#calendar').fullCalendar('removeEvents',event._id);
+    //         console.log("test");
+    //         alert('Button clicked');
+    //     });
+    // },
+
+//     eventMouseLeave: function(info) {
+//         $(info.el).find(".removebtn").remove();
+//     } -->
