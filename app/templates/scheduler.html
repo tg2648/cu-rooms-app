@@ -7,7 +7,7 @@
 {%- endblock %}
 
 {%- block content %}
-<div class="my-4">Click and drag on the calendar to create a reservation for yourself. The title of your reservation will be your UNI, visible to all graduate students. Drag or resize an existing reservation to modify it. To delete an event, see the table at the bottom of the page.</div>
+<div class="my-4">Click and drag on the calendar to create a reservation for yourself. There is a limit of <b>5</b> reservations per week (starting Monday). The title of your reservation will be your UNI, visible to all graduate students in your home department. Drag or resize an existing reservation created by you to modify it. To delete a a reservation, see the table at the bottom of the page. You cannot undelete a reservation, create a new one instead.</div>
 
 <script>
 
@@ -78,6 +78,14 @@
                 center: 'title',
                 right: 'resourceTimelineDay,resourceTimelineWeek'
             },
+            views: { 
+                day: { // customize day view to show weekday
+                    titleFormat: { weekday: 'short', month: 'short', day: 'numeric' }
+                },
+                week: { // customize week view to exclude year
+                    titleFormat: { month: 'short', day: 'numeric' }
+                }
+            },
             initialView: 'resourceTimelineDay',
             resourceAreaHeaderContent: 'Room',
             resourceGroupField: 'room',
@@ -87,6 +95,9 @@
 			},
 			events: {
 				url: 'event_data',
+                failure: function() {
+                    alert('Unexpected error while fetching events.');
+                },
 			},
             eventOverlap: false,
         });
@@ -95,46 +106,45 @@
         Callback that is triggered when a date/time selection is made.
         */
         calendar.on('select', function(info) {
-            // Check if the selected event overlaps with any existing events in the same resource
-            if (isOverlapping(info.resource.getEvents(), info)) {
-                alert('Cannot overlap with other reservations or blocked off times.')
+
+            const startTime = new Date(info.startStr).toLocaleString()
+            const endTime = new Date(info.endStr).toLocaleString()
+
+            var confirmation_message = 'Create a reservation in ' + info.resource.extendedProps.room + ' ' 
+                                        + info.resource.title + ' from ' + startTime + ' to ' + endTime + '?';
+
+            if (confirm(confirmation_message)) {
+                
+                $.ajax({
+                    type: 'POST',
+                    url: ('event_create'),
+                    contentType: 'application/json;charset=UTF-8',
+                    data: JSON.stringify({
+                        start: info.startStr,
+                        end: info.endStr,
+                        resourceId: info.resource.id,
+                        resourceName: info.resource.extendedProps.room + ' - ' + info.resource.title,
+                        viewStart: info.view.currentStart,
+                        viewEnd: info.view.currentEnd,
+                    }),
+
+                    success: function (data) {
+                        // Refresh calendar on success
+                        // Can also reload page with location.reload(); if the reservation history needs to be refreshed
+                        calendar.refetchEvents();
+                    },
+
+                    error: function (xhr, status, error) {
+                        calendar.refetchEvents();
+                        alert(xhr.responseText);
+                    },
+
+                });
+
             } else {
-
-                const startTime = new Date(info.startStr).toLocaleString()
-                const endTime = new Date(info.endStr).toLocaleString()
-
-                var confirmation_message = 'Create a reservation in ' + info.resource.extendedProps.room + ' ' 
-                                            + info.resource.title + ' from ' + startTime + ' to ' + endTime + '?';
-
-                if (confirm(confirmation_message)) {
-                    
-                    $.ajax({
-                        type: 'POST',
-                        url: ('event_select'),
-                        contentType: 'application/json;charset=UTF-8',
-                        data: JSON.stringify({
-                            start: info.startStr,
-                            end: info.endStr,
-                            resourceId: info.resource.id,
-                            resourceName: info.resource.extendedProps.room + ' - ' + info.resource.title
-                        }),
-
-                        success: function (data) {
-                            // Refresh calendar on success
-                            // Can also reload page with location.reload(); if the reservation history needs to be refreshed
-                            calendar.refetchEvents();
-                        },
-
-                        error: function (xhr, status, error) {
-                            alert(xhr.responseText);
-                        },
-
-                    });
-
-                } else {
-                    calendar.refetchEvents();
-                }
+                calendar.refetchEvents();
             }
+            
         });
         
         /*
@@ -160,13 +170,14 @@
 
                 $.ajax({
                     type: 'POST',
-                    url: ('event_drop'),
+                    url: ('event_modify'),
                     contentType: 'application/json;charset=UTF-8',
                     data: JSON.stringify(payload),
                     success: function (data) {
                         calendar.refetchEvents();
                     },
                     error: function (xhr, status, error) {
+                        calendar.refetchEvents();
                         alert(xhr.responseText);
                     },
                 });
@@ -215,13 +226,14 @@
 
                 $.ajax({
                     type: 'POST',
-                    url: ('event_drop'),
+                    url: ('event_modify'),
                     contentType: 'application/json;charset=UTF-8',
                     data: JSON.stringify(payload),
                     success: function (data) {
                         calendar.refetchEvents();
                     },
                     error: function (xhr, status, error) {
+                        calendar.refetchEvents();
                         alert(xhr.responseText);
                     },
                 });
@@ -233,6 +245,7 @@
         })
 
         calendar.render();
+        
     });
 
 </script>

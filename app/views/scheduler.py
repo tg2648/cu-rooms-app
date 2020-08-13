@@ -6,17 +6,18 @@ Scheduler
 from decimal import Decimal
 from uuid import uuid4
 from operator import itemgetter
+from datetime import datetime, timedelta
 
 # Third party imports
 import arrow
-from flask import Blueprint
-from flask import render_template
-from flask import request
-from flask import redirect
-from flask import url_for
-from flask import current_app
-from flask import abort
-from flask import jsonify
+from flask import (Blueprint,
+                   render_template,
+                   request,
+                   redirect,
+                   url_for,
+                   current_app,
+                   abort,
+                   jsonify)
 from flask.json import dumps as json_dumps
 from flask_cas import login_required
 
@@ -32,6 +33,8 @@ from app.extensions import dynamo
 bp = Blueprint('scheduler', __name__)
 logger = DynamoAccessLogger('room_scheduler')
 
+BOOKING_LIMIT_PER_WEEK = 5
+
 
 def decimal_conversion(obj):
     """
@@ -43,23 +46,61 @@ def decimal_conversion(obj):
     raise TypeError("Object of type '%s' is not JSON serializable" % type(obj).__name__)
 
 
+def datetime_to_EST(dt):
+    """Convert a datetime to EST/EDT formatted in ISO8601"""
+    return arrow.get(dt).to('US/Eastern').format('YYYY-MM-DDTHH:mm:ssZZ')
+
+
 def get_timestamp():
     """Returns current time converted to EDT/EST in ISO8601"""
-    return arrow.utcnow().to('US/Eastern').format('YYYY-MM-DDTHH:mm:ssZZ')
+    return datetime_to_EST(arrow.utcnow())
 
 
+def isOverlapping(events, newEvent):
+    """
+    Checks if `newEvent` overlaps with any events in `events` by converting start/end
+    timestamps to datetime objects and comparing.
+    In python 3.6 datetime cannot parse timezones with a colon, ignore the last 6 characters.
+    """
+
+    newEventStart = datetime.strptime(newEvent.get('start')[:-6], '%Y-%m-%dT%H:%M:%S')
+    newEventEnd = datetime.strptime(newEvent.get('end')[:-6], '%Y-%m-%dT%H:%M:%S')
+
+    for event in events:
+        eventStart = datetime.strptime(event['start'][:-6], '%Y-%m-%dT%H:%M:%S')
+        eventEnd = datetime.strptime(event['end'][:-6], '%Y-%m-%dT%H:%M:%S')
+
+        if (newEventStart > eventStart) & (newEventStart < eventEnd):
+            # Start-time in between any of the events'
+            return True
+
+        if (newEventEnd > eventStart) & (newEventEnd < eventEnd):
+            # End-time in between any of the events
+            return True
+
+        if (newEventStart <= eventStart) & (newEventEnd >= eventEnd):
+            # Any of the events in between/on the start-time and end-time
+            return True
+
+    return False
+
+
+# ROUTES
 # @login_required
 @bp.route('/')
 def index():
     current_user = User()
     logger.log_access(has_access=True)
 
+    dept = 'ECON'
+
     table_name = current_app.config['DB_SCHEDULING']
     resp_events = dynamo.tables[table_name].query(
-        IndexName='uni-index',
-        KeyConditionExpression='uni = :uni',
+        IndexName='uni-PK-index',
+        KeyConditionExpression='uni = :uni AND PK = :pk',
         ExpressionAttributeValues={
             ':uni': current_user.uni,
+            ':pk': f'EVENT#{dept}',
         },
     )
 
@@ -75,41 +116,14 @@ def event_data():
     if not ('start' in request.args and 'end' in request.args):
         return redirect(url_for('scheduler.index'))
 
-    # events = [
-    #     {
-    #         "title": "John Appleseed",
-    #         "start": "2020-08-06T12:30:00",
-    #         "end": "2020-08-06T13:30:00",
-    #         'resourceId': 'a'
-    #     },
-    #     {
-    #         'groupId': 'notAvailable',
-    #         'startTime': '10:30:00',
-    #         'endTime': '14:30:00',
-    #         'overlap': False,
-    #         'display': 'background',
-    #         'color': '#ff9f89',
-    #         'resourceId': 'b',
-    #         'daysOfWeek': [1, 2, 3, 4, 5]
-    #     },
-    #     {
-    #         'groupId': 'notAvailable',
-    #         'overlap': False,
-    #         'display': 'background',
-    #         'color': '#ff9f89',
-    #         'resourceId': 'b',
-    #         'daysOfWeek': [0, 6]
-    #     },
-    # ]
-
-    # return jsonify(events)
+    dept = 'ECON'
 
     table_name = current_app.config['DB_SCHEDULING']
     resp_events = dynamo.tables[table_name].query(
         IndexName='start-index',
         KeyConditionExpression='PK = :pk AND #s BETWEEN :lower AND :upper',
         ExpressionAttributeValues={
-            ':pk': 'EVENT',
+            ':pk': f'EVENT#{dept}',
             ':lower': f"{request.args.get('start')}",
             ':upper': f"{request.args.get('end')}",
         },
@@ -119,8 +133,11 @@ def event_data():
         FilterExpression=Attr('active').eq(True)
     )
 
-    resp_notavailable = dynamo.tables[table_name].scan(
-        IndexName='notAvailable-index',
+    resp_notavailable = dynamo.tables[table_name].query(
+        KeyConditionExpression='PK = :pk',
+        ExpressionAttributeValues={
+            ':pk': f'BLOCK#{dept}',
+        },
     )
 
     resp_events['Items'].extend(resp_notavailable['Items'])
@@ -132,37 +149,24 @@ def event_data():
 @bp.route('/resource_data')
 def resource_data():
 
-    # print(f'resource_data headers: {request.headers}')
-    # print(f'resource_data args: {request.args}')
-
-    # resources = [
-    #     {'id': 'a', 'room': '100 Dodge', 'title': 'Space A'},
-    #     {'id': 'b', 'room': '100 Dodge', 'title': 'Space B'},
-    #     {'id': 'c', 'room': '100 Dodge', 'title': 'Space C'},
-    #     {'id': 'd', 'room': '200 Dodge', 'title': 'Space A'},
-    #     {'id': 'e', 'room': '200 Dodge', 'title': 'Space B'},
-    #     {'id': 'f', 'room': '200 Dodge', 'title': 'Space C'},
-    # ]
-
     dept = 'ECON'
 
     table_name = current_app.config['DB_SCHEDULING']
     resp_resources = dynamo.tables[table_name].query(
-        KeyConditionExpression='PK = :pk AND begins_with(SK, :dept)',
+        KeyConditionExpression='PK = :pk',
         ExpressionAttributeValues={
-            ':pk': 'RESOURCE',
-            ':dept': dept,
+            ':pk': f'RESOURCE#{dept}',
         },
     )
 
     return jsonify(resp_resources['Items'])
 
 
-@bp.route('/event_drop', methods=['POST'])
-def event_drop():
+@bp.route('/event_modify', methods=['POST'])
+def event_modify():
     """
     Application logic for moving an event to a different time/day/resource.
-    Request payload should contain:
+    Payload should contain the following attributes:
         PK: Primary key of the event,
         SK: Sort key of the event,
         uni: Event owner's uni,
@@ -207,30 +211,94 @@ def event_drop():
     return 'Success', 200
 
 
-@bp.route('/event_select', methods=['POST'])
-def event_select():
+@bp.route('/event_create', methods=['POST'])
+def event_create():
+    """
+    Server response to the `select` fullcalendar callback.
 
+    Payload should contain the following attributes:
+        - start: event start timestamp
+        - end: event end timestamp
+        - resourceId: id of the resource where event was scheduled
+        - resourceName: name of the resource where event was scheduled
+        - viewStart: the start of the interval the calendar currently represents
+        - viewEnd: the end of the interval the calendar currently represents
+
+    viewStart and viewEnd are used to check for overlapping events by getting all
+    events between the two timestamps for the resourceId. The are in UTC time so
+    they are first converted to EDT/EST.
+
+    If no overlaps are present, event metadata is recorded to DynamoDB.
+    """
+
+    table_name = current_app.config['DB_SCHEDULING']
     current_user = User()
-    data = request.json
-
     uni = current_user.uni
+    dept = 'ECON'
+
+    request_data = request.json
+    resourceId = request_data.get('resourceId')
+    event_start = request_data.get('start')
+    event_end = request_data.get('end')
+
+    view_start = datetime_to_EST(request_data['viewStart'])
+    view_end = datetime_to_EST(request_data['viewEnd'])
+
+    event_start_obj = datetime.strptime(event_start[:-6], '%Y-%m-%dT%H:%M:%S')
+    start_of_week = event_start_obj - timedelta(days=event_start_obj.weekday())  # Monday
+    end_of_week = start_of_week + timedelta(days=6)  # Sunday
+
+    resp_events_week = dynamo.tables[table_name].query(
+        IndexName='uni-start-index',
+        KeyConditionExpression='uni = :uni AND #s BETWEEN :lower AND :upper',
+        ExpressionAttributeValues={
+            ':uni': uni,
+            ':lower': start_of_week.strftime('%Y-%m-%dT%H:%M:%S'),
+            ':upper': end_of_week.strftime('%Y-%m-%dT%H:%M:%S'),
+        },
+        ExpressionAttributeNames={
+            '#s': 'start',
+        },
+        FilterExpression=Attr('active').eq(True),
+        ProjectionExpression='uni',  # Don't need actual data
+    )
+
+    if (resp_events_week['Count'] >= BOOKING_LIMIT_PER_WEEK):
+        return "You've exceeded your booking limit for this week.", 500
+
+    resp_events_view = dynamo.tables[table_name].query(
+        IndexName='resourceId-start-index',
+        KeyConditionExpression='resourceId = :r AND #s BETWEEN :lower AND :upper',
+        ExpressionAttributeValues={
+            ':r': resourceId,
+            ':lower': view_start,
+            ':upper': view_end,
+        },
+        ExpressionAttributeNames={
+            '#s': 'start',
+        },
+        FilterExpression=Attr('active').eq(True)
+    )
+
+    if (isOverlapping(resp_events_view['Items'], request_data)):
+        return 'A booking already exists for this time.', 500
 
     item = {
-        'PK': 'EVENT',
-        'SK': f"{data.get('resourceId')}#{uuid4()}",
-        'start': data.get('start'),
-        'end': data.get('end'),
-        'resourceId': data.get('resourceId'),
-        'resourceName': data.get('resourceName'),
+        'PK': f'EVENT#{dept}',
+        'SK': f"{request_data.get('resourceId')}#{uuid4()}",
+        'start': event_start,
+        'end': event_end,
+        'resourceId': resourceId,
+        'resourceName': request_data.get('resourceName'),
         'title': uni,
         'uni': uni,
         'active': True,
         'createdOn': get_timestamp(),
         'changedOn': '',
+        'dept': dept,
     }
 
     try:
-        table_name = current_app.config['DB_SCHEDULING']
         dynamo.tables[table_name].put_item(Item=item)
     except Exception:
         return 'Unexpected error occured', 500
