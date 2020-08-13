@@ -42,7 +42,7 @@ class DynamoAccessLogger(object):
 
     @property
     def user_table_name(self):
-        """stR: Name of the DynamoDB table with user data."""
+        """str: Name of the DynamoDB table with user data."""
         return self.app.config['DB_USERS']
 
     def log_access(self, has_access, **kwargs):
@@ -59,7 +59,7 @@ class DynamoAccessLogger(object):
         if has_request_context():
 
             access_table = dynamo.tables[self.access_table_name]
-            timestamp = datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M')
+            timestamp = datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S')
 
             # Default payload
             item = {
