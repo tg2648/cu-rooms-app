@@ -1,15 +1,12 @@
 """
 Scheduler
 """
-
 # Standard library imports
-from decimal import Decimal
 from uuid import uuid4
 from operator import itemgetter
 from datetime import datetime, timedelta
 
 # Third party imports
-import arrow
 from flask import (Blueprint,
                    render_template,
                    request,
@@ -29,60 +26,12 @@ from app.users import User
 from app.logger import DynamoAccessLogger
 from app.extensions import dynamo
 
+from app.utils.scheduler import decimal_conversion, datetime_to_EST, get_local_ISO_timestamp, is_overlapping
 
 bp = Blueprint('scheduler', __name__)
 logger = DynamoAccessLogger('room_scheduler')
 
 BOOKING_LIMIT_PER_WEEK = 5
-
-
-def decimal_conversion(obj):
-    """
-    Conversion function for json.dumps to convert Decimal objects to integers
-    https://stackoverflow.com/questions/31202956/json-typeerror-decimal34-3-is-not-json-serializable
-    """
-    if isinstance(obj, Decimal):
-        return int(obj)
-    raise TypeError("Object of type '%s' is not JSON serializable" % type(obj).__name__)
-
-
-def datetime_to_EST(dt):
-    """Convert a datetime to EST/EDT formatted in ISO8601"""
-    return arrow.get(dt).to('US/Eastern').format('YYYY-MM-DDTHH:mm:ssZZ')
-
-
-def get_timestamp():
-    """Returns current time converted to EDT/EST in ISO8601"""
-    return datetime_to_EST(arrow.utcnow())
-
-
-def isOverlapping(events, newEvent):
-    """
-    Checks if `newEvent` overlaps with any events in `events` by converting start/end
-    timestamps to datetime objects and comparing.
-    In python 3.6 datetime cannot parse timezones with a colon, ignore the last 6 characters.
-    """
-
-    newEventStart = datetime.strptime(newEvent.get('start')[:-6], '%Y-%m-%dT%H:%M:%S')
-    newEventEnd = datetime.strptime(newEvent.get('end')[:-6], '%Y-%m-%dT%H:%M:%S')
-
-    for event in events:
-        eventStart = datetime.strptime(event['start'][:-6], '%Y-%m-%dT%H:%M:%S')
-        eventEnd = datetime.strptime(event['end'][:-6], '%Y-%m-%dT%H:%M:%S')
-
-        if (newEventStart > eventStart) & (newEventStart < eventEnd):
-            # Start-time in between any of the events'
-            return True
-
-        if (newEventEnd > eventStart) & (newEventEnd < eventEnd):
-            # End-time in between any of the events
-            return True
-
-        if (newEventStart <= eventStart) & (newEventEnd >= eventEnd):
-            # Any of the events in between/on the start-time and end-time
-            return True
-
-    return False
 
 
 # ROUTES
@@ -185,7 +134,7 @@ def event_modify():
     vals = {
         ':s': data['start'],
         ':e': data['end'],
-        ':t': get_timestamp(),
+        ':t': get_local_ISO_timestamp(),
     }
 
     if 'newResourceId' in data:
@@ -253,14 +202,14 @@ def event_create():
         KeyConditionExpression='uni = :uni AND #s BETWEEN :lower AND :upper',
         ExpressionAttributeValues={
             ':uni': uni,
-            ':lower': start_of_week.strftime('%Y-%m-%dT%H:%M:%S'),
-            ':upper': end_of_week.strftime('%Y-%m-%dT%H:%M:%S'),
+            ':lower': start_of_week.strftime('%Y-%m-%d'),
+            ':upper': end_of_week.strftime('%Y-%m-%d'),
         },
         ExpressionAttributeNames={
             '#s': 'start',
         },
         FilterExpression=Attr('active').eq(True),
-        ProjectionExpression='uni',  # Don't need actual data
+        ProjectionExpression='SK',  # Don't need actual data
     )
 
     if (resp_events_week['Count'] >= BOOKING_LIMIT_PER_WEEK):
@@ -280,7 +229,7 @@ def event_create():
         FilterExpression=Attr('active').eq(True)
     )
 
-    if (isOverlapping(resp_events_view['Items'], request_data)):
+    if (is_overlapping(resp_events_view['Items'], request_data)):
         return 'A booking already exists for this time.', 500
 
     item = {
@@ -293,7 +242,7 @@ def event_create():
         'title': uni,
         'uni': uni,
         'active': True,
-        'createdOn': get_timestamp(),
+        'createdOn': get_local_ISO_timestamp(),
         'changedOn': '',
         'dept': dept,
     }
