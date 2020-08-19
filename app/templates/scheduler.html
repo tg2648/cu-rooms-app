@@ -2,15 +2,14 @@
 {%- block title %}Room Scheduler{%- endblock title %}
 
 {%- block css %}
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar-scheduler@5.2.0/main.min.css" integrity="sha256-LOn2s1oZo044zPt6G3x2mGJnhtfXp6ZE1skHztfqnA8=" crossorigin="anonymous">
-    {{ super() }}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar-scheduler@5.2.0/main.min.css" integrity="sha256-LOn2s1oZo044zPt6G3x2mGJnhtfXp6ZE1skHztfqnA8=" crossorigin="anonymous">
+{{ super() }}
 {%- endblock %}
 
 {%- block content %}
 <div class="my-4">Click and drag on the calendar to create a reservation for yourself. There is a limit of <b>5</b> reservations per week (starting Monday). The title of your reservation will be your UNI, visible to all graduate students in your home department. Drag or resize an existing reservation created by you to modify it. To delete a a reservation, see the table at the bottom of the page. You cannot undelete a reservation, create a new one instead.</div>
 
 <script>
-
     // if(window.innerHeight > window.innerWidth){
     //     alert("Please use Landscape!");
     // }
@@ -19,50 +18,7 @@
     //     alert(window.orientation);
     // }, false);
 
-    function isOverlapping(events, eventToCheck) {
-        /*
-        Checks if `eventToCheck` overlaps with any events in `events`.
-        Modified from: https://github.com/fullcalendar/fullcalendar/issues/4849#issuecomment-452583317
-        */
-
-        const resourceID = eventToCheck.resource.id;
-        const startMoment = moment(eventToCheck.start);
-        const endMoment = moment(eventToCheck.end);
-
-        try {
-
-            for (let i = 0; i < events.length; i++) {
-
-                const eventA = events[i];
-                const eventAStart = moment(eventA.start);
-                const eventAEnd = moment(eventA.end);
-
-                // Start-time in between any of the events
-                if (moment(startMoment).isAfter(eventAStart) && moment(startMoment).isBefore(eventAEnd)) {
-                    return true;
-                }
-
-                // End-time in between any of the events
-                if (moment(endMoment).isAfter(eventAStart) && moment(endMoment).isBefore(eventAEnd)) {
-                    return true;
-                }
-
-                // Any of the events in between/on the start-time and end-time
-                if (moment(startMoment).isSameOrBefore(eventAStart) && moment(endMoment).isSameOrAfter(eventAEnd)) {
-                    return true;
-                }
-
-            }
-
-            return false;
-
-        } catch (error) {
-            console.error(error);
-            throw error;
-        }
-    }
-
-    document.addEventListener('DOMContentLoaded', function () {
+    document.addEventListener('DOMContentLoaded', function() {
 
         var calendarEl = document.getElementById('calendar');
         var calendar = new FullCalendar.Calendar(calendarEl, {
@@ -100,6 +56,7 @@
                 },
 			},
             eventOverlap: false,
+            firstDay: 1, // start week on Sunday
         });
 
         /*
@@ -245,9 +202,20 @@
         })
 
         calendar.render();
-        
-    });
 
+        /*
+        Refetch events after returning from 1 min of inactivity; Using https://github.com/shawnmclean/Idle.js
+        */
+        var awayBackCallback = function() {
+            calendar.refetchEvents();
+        };
+
+        var idle = new Idle({
+            onAwayBack : awayBackCallback,
+            awayTimeout : 3000
+        }).start();
+
+    });
 </script>
 
 <div id="calendar"></div>
@@ -289,48 +257,6 @@
 
 {%- block scripts %}
     {{ super() }}
-    <script src="https://cdn.jsdelivr.net/npm/moment@2.27.0/moment.js" integrity="sha256-QTriwEK1XTUJdKp3So7tMDUvZSTLOPpUv8F/J+UwJ8M=" crossorigin="anonymous"></script>
+    <script src="https://cu-dash-static.s3.us-east-2.amazonaws.com/scripts/idle.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar-scheduler@5.2.0/main.min.js" integrity="sha256-U+VlpMlWIzzE74RY4mZL4MixQg66XWfjEWW2VUxHgcE=" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/moment@5.2.0/main.global.min.js" integrity="sha256-7WNMw3NoYwwtQzbvaebEKKhPHwqVf3kKGfSHTf18qdg=" crossorigin="anonymous"></script>
 {%- endblock %}
-
-<!-- // eventClick: function(info) { // Triggered when the user clicks an event.
-    //     console.log('Event: ' + info.event.title);
-    //     console.log('Coordinates: ' + info.jsEvent.pageX + ',' + info.jsEvent.pageY);
-    //     console.log('View: ' + info.view.type);
-
-    //     $(info.el).popover({
-    //         placement: 'top',
-    //         trigger: 'focus',
-    //         content: 'Delete?',
-    //     }).popover('toggle');
-    // }
-
-    // eventDidMount: function(info) {
-    //     $(info.el).append("<span class='calendar-removebtn'></span>");
-    //     console.log($(info.el).find(".calendar-removebtn"));
-    //     // $(info.el).find("span").click(function() {
-    //     //     // $('#calendar').fullCalendar('removeEvents',event._id);
-    //     //     console.log("test");
-    //     //     alert('Button clicked');
-
-    //     // });
-    //     $(info.el).find(".calendar-removebtn").on('click', function () {
-    //         alert('Button clicked');
-    //     });
-    // },
-
-    // $(info.el).append("<span class='fa fa-times-circle calendar-removebtn'></span>");
-    // eventMouseEnter: function(info) {
-    //     $(info.el).append("<span class='removebtn'>X</span>");
-    //     console.log($(info.el).find("span"));
-    //     $(info.el).find("span").click(function() {
-    //         // $('#calendar').fullCalendar('removeEvents',event._id);
-    //         console.log("test");
-    //         alert('Button clicked');
-    //     });
-    // },
-
-//     eventMouseLeave: function(info) {
-//         $(info.el).find(".removebtn").remove();
-//     } -->
