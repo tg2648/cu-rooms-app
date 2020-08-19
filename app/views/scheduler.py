@@ -35,8 +35,8 @@ BOOKING_LIMIT_PER_WEEK = 5
 
 
 # ROUTES
-# @login_required
 @bp.route('/')
+@login_required
 def index():
     current_user = User()
     logger.log_access(has_access=True)
