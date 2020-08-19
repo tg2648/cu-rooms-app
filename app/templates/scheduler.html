@@ -18,6 +18,49 @@
     //     alert(window.orientation);
     // }, false);
 
+    function isOverlapping(events, eventToCheck) {
+        /*
+        Checks if `eventToCheck` overlaps with any events in `events`.
+        Modified from: https://github.com/fullcalendar/fullcalendar/issues/4849#issuecomment-452583317
+        */
+
+        const resourceID = eventToCheck.resource.id;
+        const startMoment = moment(eventToCheck.start);
+        const endMoment = moment(eventToCheck.end);
+
+        try {
+
+            for (let i = 0; i < events.length; i++) {
+
+                const eventA = events[i];
+                const eventAStart = moment(eventA.start);
+                const eventAEnd = moment(eventA.end);
+
+                // Start-time in between any of the events
+                if (moment(startMoment).isAfter(eventAStart) && moment(startMoment).isBefore(eventAEnd)) {
+                    return true;
+                }
+
+                // End-time in between any of the events
+                if (moment(endMoment).isAfter(eventAStart) && moment(endMoment).isBefore(eventAEnd)) {
+                    return true;
+                }
+
+                // Any of the events in between/on the start-time and end-time
+                if (moment(startMoment).isSameOrBefore(eventAStart) && moment(endMoment).isSameOrAfter(eventAEnd)) {
+                    return true;
+                }
+
+            }
+
+            return false;
+
+        } catch (error) {
+            console.error(error);
+            throw error;
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
 
         var calendarEl = document.getElementById('calendar');
@@ -63,45 +106,49 @@
         Callback that is triggered when a date/time selection is made.
         */
         calendar.on('select', function(info) {
-
-            const startTime = new Date(info.startStr).toLocaleString()
-            const endTime = new Date(info.endStr).toLocaleString()
-
-            var confirmation_message = 'Create a reservation in ' + info.resource.extendedProps.room + ' ' 
-                                        + info.resource.title + ' from ' + startTime + ' to ' + endTime + '?';
-
-            if (confirm(confirmation_message)) {
-                
-                $.ajax({
-                    type: 'POST',
-                    url: ('event_create'),
-                    contentType: 'application/json;charset=UTF-8',
-                    data: JSON.stringify({
-                        start: info.startStr,
-                        end: info.endStr,
-                        resourceId: info.resource.id,
-                        resourceName: info.resource.extendedProps.room + ' - ' + info.resource.title,
-                        viewStart: info.view.currentStart,
-                        viewEnd: info.view.currentEnd,
-                    }),
-
-                    success: function (data) {
-                        // Refresh calendar on success
-                        // Can also reload page with location.reload(); if the reservation history needs to be refreshed
-                        calendar.refetchEvents();
-                    },
-
-                    error: function (xhr, status, error) {
-                        calendar.refetchEvents();
-                        alert(xhr.responseText);
-                    },
-
-                });
-
+            console.log(info.resource.getEvents());
+            if (isOverlapping(info.resource.getEvents(), info)) {
+                alert('Your booking overlaps with another booking or a reserved time.');
             } else {
-                calendar.refetchEvents();
+
+                const startTime = new Date(info.startStr).toLocaleString()
+                const endTime = new Date(info.endStr).toLocaleString()
+
+                var confirmation_message = 'Create a reservation in ' + info.resource.extendedProps.room + ' ' 
+                                            + info.resource.title + ' from ' + startTime + ' to ' + endTime + '?';
+
+                if (confirm(confirmation_message)) {
+                    
+                    $.ajax({
+                        type: 'POST',
+                        url: ('event_create'),
+                        contentType: 'application/json;charset=UTF-8',
+                        data: JSON.stringify({
+                            start: info.startStr,
+                            end: info.endStr,
+                            resourceId: info.resource.id,
+                            resourceName: info.resource.extendedProps.room + ' - ' + info.resource.title,
+                            viewStart: info.view.currentStart,
+                            viewEnd: info.view.currentEnd,
+                        }),
+
+                        success: function (data) {
+                            // Refresh calendar on success
+                            // Can also reload page with location.reload(); if the reservation history needs to be refreshed
+                            calendar.refetchEvents();
+                        },
+
+                        error: function (xhr, status, error) {
+                            calendar.refetchEvents();
+                            alert(xhr.responseText);
+                        },
+
+                    });
+
+                } else {
+                    calendar.refetchEvents();
+                }
             }
-            
         });
         
         /*
@@ -258,5 +305,7 @@
 {%- block scripts %}
     {{ super() }}
     <script src="https://cu-dash-static.s3.us-east-2.amazonaws.com/scripts/idle.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/moment@2.27.0/moment.js" integrity="sha256-QTriwEK1XTUJdKp3So7tMDUvZSTLOPpUv8F/J+UwJ8M=" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar-scheduler@5.2.0/main.min.js" integrity="sha256-U+VlpMlWIzzE74RY4mZL4MixQg66XWfjEWW2VUxHgcE=" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/moment@5.2.0/main.global.min.js" integrity="sha256-7WNMw3NoYwwtQzbvaebEKKhPHwqVf3kKGfSHTf18qdg=" crossorigin="anonymous"></script>
 {%- endblock %}

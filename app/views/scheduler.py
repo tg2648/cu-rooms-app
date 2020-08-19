@@ -230,7 +230,7 @@ def event_create():
     )
 
     if (is_overlapping(resp_events_view['Items'], request_data)):
-        return 'A booking already exists for this time.', 500
+        return 'Your booking overlaps with another booking or a reserved time.', 500
 
     item = {
         'PK': f'EVENT#{dept}',
