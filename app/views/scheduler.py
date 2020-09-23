@@ -4,7 +4,6 @@ Scheduler
 # Standard library imports
 from uuid import uuid4
 from operator import itemgetter
-from datetime import datetime, timedelta
 
 # Third party imports
 from flask import (Blueprint,
@@ -26,53 +25,61 @@ from app.users import User
 from app.logger import DynamoAccessLogger
 from app.extensions import dynamo
 
-from app.utils.scheduler import decimal_conversion, datetime_to_EST, get_local_ISO_timestamp, is_overlapping
+from app.utils.scheduler import (decimal_conversion,
+                                 datetime_to_EST,
+                                 get_local_ISO_timestamp,
+                                 is_overlapping,
+                                 natmultisort)
 
 bp = Blueprint('scheduler', __name__)
 logger = DynamoAccessLogger('room_scheduler')
 
-BOOKING_LIMIT_PER_WEEK = 5
-
-
 # ROUTES
+# @login_required
 @bp.route('/')
-@login_required
 def index():
-    current_user = User()
-    logger.log_access(has_access=True)
+    current_user = User('tg2648')
+    dept = current_user.dept
 
-    dept = 'ECON'
+    if dept:
 
-    table_name = current_app.config['DB_SCHEDULING']
-    resp_events = dynamo.tables[table_name].query(
-        IndexName='uni-PK-index',
-        KeyConditionExpression='uni = :uni AND PK = :pk',
-        ExpressionAttributeValues={
-            ':uni': current_user.uni,
-            ':pk': f'EVENT#{dept}',
-        },
-    )
+        logger.log_access(success=True, route='index')
 
-    # Sort by start time
-    events = sorted(resp_events['Items'], key=itemgetter('start'))
+        table_name = current_app.config['DB_SCHEDULING']
+        resp_events = dynamo.tables[table_name].query(
+            IndexName='uni-PK-index',
+            KeyConditionExpression='uni = :uni AND PK = :pk',
+            ExpressionAttributeValues={
+                ':uni': current_user.uni,
+                ':pk': f'EVENT#{dept}',
+            },
+        )
 
-    return render_template('scheduler.html', events=events)
+        # Sort by start time
+        events = sorted(resp_events['Items'], key=itemgetter('start'))
+        return render_template('scheduler.html', events=events)
+
+    else:
+
+        logger.log_access(success=False, route='index')
+        return render_template('403.html')
 
 
 @bp.route('/event_data')
 def event_data():
 
     if not ('start' in request.args and 'end' in request.args):
+        logger.log_access(success=False, route='event_data', error='RequestArgs')
         return redirect(url_for('scheduler.index'))
 
-    dept = 'ECON'
+    current_user = User('tg2648')
 
     table_name = current_app.config['DB_SCHEDULING']
     resp_events = dynamo.tables[table_name].query(
         IndexName='start-index',
         KeyConditionExpression='PK = :pk AND #s BETWEEN :lower AND :upper',
         ExpressionAttributeValues={
-            ':pk': f'EVENT#{dept}',
+            ':pk': f'EVENT#{current_user.dept}',
             ':lower': f"{request.args.get('start')}",
             ':upper': f"{request.args.get('end')}",
         },
@@ -85,7 +92,7 @@ def event_data():
     resp_notavailable = dynamo.tables[table_name].query(
         KeyConditionExpression='PK = :pk',
         ExpressionAttributeValues={
-            ':pk': f'BLOCK#{dept}',
+            ':pk': f'BLOCK#{current_user.dept}',
         },
     )
 
@@ -95,20 +102,21 @@ def event_data():
     return json_dumps(resp_events['Items'], default=decimal_conversion)
 
 
-@bp.route('/resource_data')
+@bp.route('/resource_data', methods=['POST'])
 def resource_data():
 
-    dept = 'ECON'
+    current_user = User('tg2648')
 
     table_name = current_app.config['DB_SCHEDULING']
     resp_resources = dynamo.tables[table_name].query(
         KeyConditionExpression='PK = :pk',
         ExpressionAttributeValues={
-            ':pk': f'RESOURCE#{dept}',
+            ':pk': f'RESOURCE#{current_user.dept}',
         },
     )
 
-    return jsonify(resp_resources['Items'])
+    # Use natural sorting to make sure 900 comes before 1000, etc.
+    return jsonify(natmultisort(resp_resources['Items'], (('room', False), ('title', False))))
 
 
 @bp.route('/event_modify', methods=['POST'])
@@ -128,6 +136,7 @@ def event_modify():
     current_user = User()
 
     if data['uni'] != current_user.uni:
+        logger.log_access(success=False, route='event_modify', error='NotOwnReservation')
         return 'You can only modify your own reservations.', 403
 
     expr = 'SET #s = :s, #e = :e, changedOn = :t'
@@ -157,6 +166,7 @@ def event_modify():
         print(e)
         return 'Unexpected error occured', 500
 
+    logger.log_access(success=True, route='event_modify')
     return 'Success', 200
 
 
@@ -174,16 +184,16 @@ def event_create():
         - viewEnd: the end of the interval the calendar currently represents
 
     viewStart and viewEnd are used to check for overlapping events by getting all
-    events between the two timestamps for the resourceId. The are in UTC time so
+    events between the two timestamps for the resourceId. They are in UTC time so
     they are first converted to EDT/EST.
 
     If no overlaps are present, event metadata is recorded to DynamoDB.
     """
 
     table_name = current_app.config['DB_SCHEDULING']
-    current_user = User()
+    current_user = User('tg2648')
     uni = current_user.uni
-    dept = 'ECON'
+    dept = current_user.dept
 
     request_data = request.json
     resourceId = request_data.get('resourceId')
@@ -192,28 +202,6 @@ def event_create():
 
     view_start = datetime_to_EST(request_data['viewStart'])
     view_end = datetime_to_EST(request_data['viewEnd'])
-
-    event_start_obj = datetime.strptime(event_start[:-6], '%Y-%m-%dT%H:%M:%S')
-    start_of_week = event_start_obj - timedelta(days=event_start_obj.weekday())  # Monday
-    end_of_week = start_of_week + timedelta(days=6)  # Sunday
-
-    resp_events_week = dynamo.tables[table_name].query(
-        IndexName='uni-start-index',
-        KeyConditionExpression='uni = :uni AND #s BETWEEN :lower AND :upper',
-        ExpressionAttributeValues={
-            ':uni': uni,
-            ':lower': start_of_week.strftime('%Y-%m-%d'),
-            ':upper': end_of_week.strftime('%Y-%m-%d'),
-        },
-        ExpressionAttributeNames={
-            '#s': 'start',
-        },
-        FilterExpression=Attr('active').eq(True),
-        ProjectionExpression='SK',  # Don't need actual data
-    )
-
-    if (resp_events_week['Count'] >= BOOKING_LIMIT_PER_WEEK):
-        return "You've exceeded your booking limit for this week.", 500
 
     resp_events_view = dynamo.tables[table_name].query(
         IndexName='resourceId-start-index',
@@ -230,6 +218,7 @@ def event_create():
     )
 
     if (is_overlapping(resp_events_view['Items'], request_data)):
+        logger.log_access(success=False, route='event_create', error='Overlap')
         return 'Your booking overlaps with another booking or a reserved time.', 500
 
     item = {
@@ -250,8 +239,10 @@ def event_create():
     try:
         dynamo.tables[table_name].put_item(Item=item)
     except Exception:
+        logger.log_access(success=False, route='event_create', error='Unexpected 500')
         return 'Unexpected error occured', 500
 
+    logger.log_access(success=True, route='event_create')
     return 'Success', 200
 
 
@@ -265,7 +256,7 @@ def event_delete():
         PK = s.loads(request.form['PK'])
         SK = s.loads(request.form['SK'])
     except BadSignature:
-        logger.log_access(has_access=False)
+        logger.log_access(success=False, route='event_delete', error='BadSignature')
         abort(400)
 
     try:
@@ -275,8 +266,17 @@ def event_delete():
             UpdateExpression='SET active = :f',
             ExpressionAttributeValues={':f': False}
         )
-    except Exception as e:
-        print(e)
-        abort(400)
+    except Exception:
+        logger.log_access(success=False, route='event_delete', error='Unexpected 500')
+        return 'Unexpected error occured', 500
 
-    return redirect(url_for('scheduler.index'))
+    return redirect(url_for('scheduler.index', _anchor='history'))
+
+
+@bp.route('/ping')
+def ping():
+    """
+    ELB health checks fail because accessing the root of the app redirects to CAS login.
+    This route simply returns the 200 code for the health check
+    """
+    return 'Success', 200
