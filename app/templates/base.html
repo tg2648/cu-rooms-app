@@ -37,6 +37,22 @@
     <a class="navbar-brand mb-0 h1" href="/">
         <img src="https://cu-dash-static.s3.us-east-2.amazonaws.com/img/crown-white.png" height="30" class="d-inline-block align-top mr-2">A&S Rooms
     </a>
+
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarColor02">
+        <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="navbarColor02">
+        {% if 'CAS_USERNAME' in session %}
+            <span class="navbar-text ml-auto">
+                Signed in as {{ session.CAS_USERNAME }} 
+            </span>
+            <form class="form-inline my-2 my-lg-0" action="{{ url_for('cas.logout') }}">
+                <button class="btn btn-secondary my-2 ml-2 my-sm-0">Logout</button>
+            </form>
+        {% endif %}
+     </div>
+
 </div>
 </nav>
 {%- endblock navbar %}
