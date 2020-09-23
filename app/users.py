@@ -7,8 +7,6 @@ from flask import current_app
 from flask import session
 from flask import has_request_context
 
-from boto3.dynamodb.conditions import Attr
-
 # Local application imports
 from app.extensions import dynamo
 
@@ -45,11 +43,11 @@ class User(object):
         return current_app
 
     @property
-    def user_table_name(self):
+    def table_name(self):
         """
         Name of the DynamoDB table to use
         """
-        return self.app.config['DB_USERS']
+        return self.app.config['DB_SCHEDULING']
 
     @property
     def uni(self):
@@ -68,119 +66,24 @@ class User(object):
             return str(self._uni)
 
     @property
-    def obj(self):
+    def dept(self):
         """
-        Returns the entire user object as a dictionary
-        """
-        if (has_request_context() and 'CAS_USERNAME' in session) or (self._uni is not None):
-
-            try:
-                response = dynamo.tables[self.user_table_name].get_item(Key={'UNI': self.uni})
-                return response['Item']
-            except KeyError:
-                return None
-
-        else:
-            return None
-
-    def fif_access(self, arg):
-        """
-        Get details about user's access to the FIF dashboard for a given argument.
-        Argument options:
-            - 'dept' returns a list of departments to which user has faculty-level access
-            - 'chair_dept' returns a list of department codes for which user has chair-level access
-
-        Returns:
-            - If user has access: a list of department codes
-            - If user does not have access (either not in DB or no access to dashboard): empty list
+        Returns user's department. If user is not registered to use the application, returns an empty string.
         """
         if (has_request_context() and 'CAS_USERNAME' in session) or (self._uni is not None):
 
-            try:
-                response = dynamo.tables[self.user_table_name].get_item(Key={'UNI': self.uni})
-                return sorted(list(response['Item']['fif'][arg]))
-            except KeyError:
-                return []
-
-        else:
-            return []
-
-    def searchcom_access(self):
-        """
-        Get details about user's access to the search dashboard
-        Returns:
-            - If user has access: a list of requisition numbers to which user has access to
-            - If user does not have access (either not in DB or no access to dashboard): empty list
-        """
-        if (has_request_context() and 'CAS_USERNAME' in session) or (self._uni is not None):
+            response = dynamo.tables[self.table_name].query(
+                KeyConditionExpression='PK = :pk',
+                ExpressionAttributeValues={
+                    ':pk': f'USER#{self.uni}',
+                },
+            )
 
             try:
-                # TODO: can optimize by using ProjectionExpression to return only the requirements?
-                response = dynamo.tables[self.user_table_name].get_item(Key={'UNI': self.uni})
-                return sorted(list(response['Item']['searchcom']['reqs']))
-            except KeyError:
-                return []
+                return response['Items'][0]['SK']
+            except IndexError:
+                return ''
 
         else:
-            return []
 
-    def admin_access(self):
-        """
-        Get details about user's access to the Admin dashboard
-        Returns:
-            - If user has access: True
-            - If user does not have access (either not in DB or no admin access): False
-        """
-        if (has_request_context() and 'CAS_USERNAME' in session) or (self._uni is not None):
-
-            try:
-                response = dynamo.tables[self.user_table_name].get_item(Key={'UNI': self.uni})
-                return response['Item']['admin_tag']
-            except KeyError:
-                return False
-
-        else:
-            return False
-
-
-class UserBatch(object):
-    """DynamoDB interface to query the users table. Batch user operations.
-    """
-
-    @property
-    def app(self):
-        """
-        Current FLask instance
-        """
-        return current_app
-
-    @property
-    def user_table_name(self):
-        """
-        Name of the DynamoDB table to use
-        """
-        return self.app.config['DB_USERS']
-
-    def attribute_contains_search(self, attribute, value):
-        """
-        Returns search results where an attribute contains a certain value.
-        """
-        table = dynamo.tables[self.user_table_name]
-
-        response = table.scan(
-            ConsistentRead=True,
-            FilterExpression=Attr(attribute).contains(value)
-        )
-        return response['Items']
-
-    def attribute_eq_search(self, attribute, value):
-        """
-        Returns search results where an attribute contains a certain value.
-        """
-        table = dynamo.tables[self.user_table_name]
-
-        response = table.scan(
-            ConsistentRead=True,
-            FilterExpression=Attr(attribute).eq(value)
-        )
-        return response['Items']
+            return ''
