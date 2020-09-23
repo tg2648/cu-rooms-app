@@ -4,9 +4,11 @@ Utils for the room scheduler.
 # Standard library imports
 from decimal import Decimal
 from datetime import datetime
+from operator import itemgetter
 
 # Third party imports
 import arrow
+from natsort import natsorted
 
 
 def decimal_conversion(obj):
@@ -56,3 +58,25 @@ def is_overlapping(events, newEvent):
             return True
 
     return False
+
+
+def natmultisort(data, specs):
+    """
+    "Natural" multisort
+    https://docs.python.org/3/howto/sorting.html#sort-stability-and-complex-sorts
+
+    Args:
+        data (list[dict])
+        specs (Tuple[Tuple]): Each tuple consists of
+            0: Attribute to sort by
+            1: True for a descending sort
+
+    Returns:
+        Sorted list[dict]
+    """
+
+    temp = data
+    for key, reverse in reversed(specs):
+        temp = natsorted(temp, key=itemgetter(key), reverse=reverse)
+
+    return temp

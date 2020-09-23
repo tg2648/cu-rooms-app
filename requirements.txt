@@ -4,3 +4,4 @@ Flask==1.1.2
 flask-cas-ng==1.1.0
 flask-dynamo==0.1.2
 python-dotenv==0.13.0
+natsort==7.0.1
