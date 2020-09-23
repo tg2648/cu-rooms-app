@@ -2,10 +2,6 @@
 Jinja Template Filers
 """
 
-# Standard libary imports
-import os
-import mimetypes
-
 # Third party imports
 import arrow
 from flask import current_app

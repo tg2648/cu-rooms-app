@@ -57,6 +57,7 @@ class User(object):
                 after logging in with CAS
             If initialized with a UNI - returns provided UNI
         """
+
         if self._uni is None:
             if has_request_context() and 'CAS_USERNAME' in session:
                 return session.get('CAS_USERNAME', 'None')
