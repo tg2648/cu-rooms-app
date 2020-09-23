@@ -45,7 +45,7 @@ class DynamoAccessLogger(object):
         """str: Name of the DynamoDB table with user data."""
         return self.app.config['DB_USERS']
 
-    def log_access(self, has_access, **kwargs):
+    def log_access(self, success, **kwargs):
         """Logs users access.
 
             accessedBy: user's UNI, comes from the session.
@@ -66,7 +66,7 @@ class DynamoAccessLogger(object):
                 'resource-timestamp': f'{self.resource}#{timestamp}',
                 'resource': self.resource,
                 'timestamp': timestamp,
-                'has_access': has_access
+                'success': success
             }
 
             # Additional payload based on keyword arguments
