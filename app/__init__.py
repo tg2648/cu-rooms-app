@@ -35,12 +35,8 @@ def create_app():
     register_blueprints(server)
 
     # Register Jinja filters
-    server.jinja_env.filters['datetimeformat'] = jinja_filters.datetimeformat
-    server.jinja_env.filters['datetime_utc_to_est'] = jinja_filters.datetime_utc_to_est
-    server.jinja_env.filters['file_type'] = jinja_filters.file_type
-    server.jinja_env.filters['file_name'] = jinja_filters.file_name
+    server.jinja_env.filters['datetime_humanize'] = jinja_filters.datetime_humanize
     server.jinja_env.filters['serialize'] = jinja_filters.serialize
-    server.jinja_env.filters['convert_to_list'] = jinja_filters.convert_to_list
 
     return server
 
