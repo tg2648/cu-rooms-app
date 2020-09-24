@@ -4,6 +4,7 @@ Logger class
 
 # Standard library imports
 import datetime
+import uuid
 
 # Third party imports
 from flask import current_app
@@ -63,7 +64,7 @@ class DynamoAccessLogger(object):
 
             # Default payload
             item = {
-                'resource-timestamp': f'{self.resource}#{timestamp}',
+                'resource-timestamp': f'{self.resource}#{timestamp}#{uuid.uuid4()}',
                 'resource': self.resource,
                 'timestamp': timestamp,
                 'success': success
