@@ -34,11 +34,12 @@ from app.utils.scheduler import (decimal_conversion,
 bp = Blueprint('scheduler', __name__)
 logger = DynamoAccessLogger('room_scheduler')
 
+
 # ROUTES
-# @login_required
 @bp.route('/')
+@login_required
 def index():
-    current_user = User('tg2648')
+    current_user = User()
     dept = current_user.dept
 
     if dept:
@@ -67,12 +68,14 @@ def index():
 
 @bp.route('/event_data')
 def event_data():
-
+    """
+    Returns all existing event and blocked-off times for the user's department
+    """
     if not ('start' in request.args and 'end' in request.args):
         logger.log_access(success=False, route='event_data', error='RequestArgs')
         return redirect(url_for('scheduler.index'))
 
-    current_user = User('tg2648')
+    current_user = User()
 
     table_name = current_app.config['DB_SCHEDULING']
     resp_events = dynamo.tables[table_name].query(
@@ -104,8 +107,10 @@ def event_data():
 
 @bp.route('/resource_data', methods=['POST'])
 def resource_data():
-
-    current_user = User('tg2648')
+    """
+    Returns all resources for the user's department
+    """
+    current_user = User()
 
     table_name = current_app.config['DB_SCHEDULING']
     resp_resources = dynamo.tables[table_name].query(
@@ -191,7 +196,7 @@ def event_create():
     """
 
     table_name = current_app.config['DB_SCHEDULING']
-    current_user = User('tg2648')
+    current_user = User()
     uni = current_user.uni
     dept = current_user.dept
 
@@ -248,6 +253,9 @@ def event_create():
 
 @bp.route('/event_delete', methods=['POST'])
 def event_delete():
+    """
+    Application logic for deleting an event.
+    """
     logger = DynamoAccessLogger('room_scheduler_event_delete')
 
     s = current_app.config['SERIALIZER']
