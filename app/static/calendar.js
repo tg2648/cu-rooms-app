@@ -142,7 +142,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const startTime = new Date(info.event.startStr).toLocaleString()
         const endTime = new Date(info.event.endStr).toLocaleString()
 
-        var confirmation_message = 'Modify reservation to the same locaiton but from ' + startTime 
+        var confirmation_message = 'Modify reservation to the same location but from ' + startTime 
                                     + ' to ' + endTime + '?';
         
         var payload = {
@@ -197,7 +197,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 newResourceName: info.newResource.extendedProps.room + ' - ' + info.newResource.title
             }
         } else {
-            var confirmation_message = 'Modify reservation to the same locaiton but from ' + startTime 
+            var confirmation_message = 'Modify reservation to the same location but from ' + startTime 
             + ' to ' + endTime + '?';
             
             var payload = {
