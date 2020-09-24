@@ -256,7 +256,6 @@ def event_delete():
     """
     Application logic for deleting an event.
     """
-    logger = DynamoAccessLogger('room_scheduler_event_delete')
 
     s = current_app.config['SERIALIZER']
 
@@ -271,13 +270,17 @@ def event_delete():
         table_name = current_app.config['DB_SCHEDULING']
         dynamo.tables[table_name].update_item(
             Key={'PK': PK, 'SK': SK},
-            UpdateExpression='SET active = :f',
-            ExpressionAttributeValues={':f': False}
+            UpdateExpression='SET active = :f, changedOn = :t',
+            ExpressionAttributeValues={
+                ':f': False,
+                ':t': get_local_ISO_timestamp(),
+            }
         )
     except Exception:
         logger.log_access(success=False, route='event_delete', error='Unexpected 500')
         return 'Unexpected error occured', 500
 
+    logger.log_access(success=True, route='event_delete')
     return redirect(url_for('scheduler.index', _anchor='history'))
 
 
