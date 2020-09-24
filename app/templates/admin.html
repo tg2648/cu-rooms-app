@@ -1,0 +1,68 @@
+{%- extends "base.html" %}
+{%- block title %}Room Scheduler{%- endblock title %}
+
+{%- block css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar-scheduler@5.2.0/main.min.css" integrity="sha256-LOn2s1oZo044zPt6G3x2mGJnhtfXp6ZE1skHztfqnA8=" crossorigin="anonymous">
+{{ super() }}
+{%- endblock %}
+
+{%- block content %}
+<script>
+const options = {
+    schedulerLicenseKey: '0320620453-fcs-1597083069',
+    aspectRatio: 1.7,
+    editable: true,
+    selectable: true,
+    nowIndicator: true,
+    themeSystem: 'bootstrap',
+    timeZone: 'local',
+    headerToolbar: {
+        left: 'today prev,next',
+        center: 'title',
+        right: 'resourceTimelineDay,resourceTimelineWeek'
+    },
+    views: { 
+        day: { // customize day view to show weekday
+            titleFormat: { weekday: 'short', month: 'short', day: 'numeric' }
+        },
+        week: { // customize week view to exclude year
+            titleFormat: { month: 'short', day: 'numeric' }
+        }
+    },
+    initialView: 'resourceTimelineDay',
+    resourceAreaHeaderContent: 'Room',
+    resourceGroupField: 'room',
+    resourceAreaWidth: '25%',
+    resourceOrder: 'PK',  // Sorting by this, which is the same for all resources, will ensure fullcalendar does not mess up the correct order from url feed
+    resources: {
+        url: 'resource_data',
+        method: 'POST'
+    },
+    events: {
+        url: 'event_data',
+        failure: function() {
+            alert('Unexpected error while fetching events.');
+        },
+    },
+    eventOverlap: false,
+    firstDay: 1, // start week on Sunday
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+
+    var calendarEl = document.getElementById('calendar');
+    var calendar = new FullCalendar.Calendar(calendarEl, options);
+    calendar.render();
+
+});
+</script>
+
+<div id="calendar" class="my-3"></div>
+{%- endblock %}
+
+{%- block scripts %}
+    {{ super() }}
+    <script src="https://cdn.jsdelivr.net/npm/moment@2.27.0/moment.js" integrity="sha256-QTriwEK1XTUJdKp3So7tMDUvZSTLOPpUv8F/J+UwJ8M=" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar-scheduler@5.2.0/main.min.js" integrity="sha256-U+VlpMlWIzzE74RY4mZL4MixQg66XWfjEWW2VUxHgcE=" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/moment@5.2.0/main.global.min.js" integrity="sha256-7WNMw3NoYwwtQzbvaebEKKhPHwqVf3kKGfSHTf18qdg=" crossorigin="anonymous"></script>
+{%- endblock %}
