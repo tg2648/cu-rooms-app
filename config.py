@@ -31,8 +31,8 @@ class Config(object):
     # Dynamo [required by flask_dynamo]
     DYNAMO_SESSION = boto3.Session(
         region_name='us-east-2',
-        aws_access_key_id=os.getenv('DB_ACCESS_KEY'),
-        aws_secret_access_key=os.getenv('DB_SECRET')
+        aws_access_key_id=os.getenv('AWS_ACCESS_KEY'),
+        aws_secret_access_key=os.getenv('AWS_SECRET')
     )
 
 
