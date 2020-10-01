@@ -6,6 +6,9 @@ Jinja Template Filers
 import arrow
 from flask import current_app
 
+# Local application imports
+from app.users import User
+
 
 def datetime_humanize(date_str):
     """
@@ -34,6 +37,13 @@ def datetime_time(date_str):
     """
     dt = arrow.get(date_str)
     return dt.to('US/Eastern').format('HH:mm')
+
+
+def user_is_dept_admin(uni):
+    """
+    Wrap `User`'s functionality to be available inside templates
+    """
+    return User(uni).is_dept_admin()
 
 
 def serialize(key):

@@ -40,6 +40,7 @@ def create_app():
     server.jinja_env.filters['datetime_time'] = jinja_filters.datetime_time
     server.jinja_env.filters['datetime_custom'] = jinja_filters.datetime_custom
     server.jinja_env.filters['serialize'] = jinja_filters.serialize
+    server.jinja_env.filters['user_is_dept_admin'] = jinja_filters.user_is_dept_admin
 
     return server
 

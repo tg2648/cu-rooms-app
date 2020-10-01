@@ -47,6 +47,13 @@
     </button>
 
     <div class="collapse navbar-collapse" id="navbarColor02">
+        {% if session.CAS_USERNAME | user_is_dept_admin %}
+            <ul class="navbar-nav mr-auto">
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('dept_admin.index') }}">Dept. Admin</a>
+                </li>
+            </ul>
+        {% endif %}
         {% if 'CAS_USERNAME' in session %}
             <span class="navbar-text ml-auto">
                 Signed in as {{ session.CAS_USERNAME }} 
