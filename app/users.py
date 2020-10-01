@@ -107,3 +107,22 @@ class User(object):
         else:
 
             return False
+
+    def is_dept_admin(self):
+        if (has_request_context() and 'CAS_USERNAME' in session) or (self._uni is not None):
+
+            response = dynamo.tables[self.table_name].query(
+                KeyConditionExpression='PK = :pk',
+                ExpressionAttributeValues={
+                    ':pk': f'USER#{self.uni}',
+                },
+            )
+
+            try:
+                return response['Items'][0]['type'] in ['Staff', 'Chair']
+            except IndexError:
+                return False
+
+        else:
+
+            return False

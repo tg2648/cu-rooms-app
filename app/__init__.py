@@ -36,6 +36,9 @@ def create_app():
 
     # Register Jinja filters
     server.jinja_env.filters['datetime_humanize'] = jinja_filters.datetime_humanize
+    server.jinja_env.filters['datetime_date'] = jinja_filters.datetime_date
+    server.jinja_env.filters['datetime_time'] = jinja_filters.datetime_time
+    server.jinja_env.filters['datetime_custom'] = jinja_filters.datetime_custom
     server.jinja_env.filters['serialize'] = jinja_filters.serialize
 
     return server
@@ -71,7 +74,9 @@ def register_blueprints(server):
     # from app.views import home
     from app.views import scheduler
     from app.views import admin
+    from app.views import dept_admin
 
     # server.register_blueprint(home.bp)
     server.register_blueprint(scheduler.bp)
     server.register_blueprint(admin.bp)
+    server.register_blueprint(dept_admin.bp)

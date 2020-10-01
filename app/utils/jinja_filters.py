@@ -9,10 +9,31 @@ from flask import current_app
 
 def datetime_humanize(date_str):
     """
-    ISO-ish date format (with timezone conversion from UTC to EST)
+    Human-friendly format: Weekday, month day am/pm time
     """
     dt = arrow.get(date_str)
     return dt.to('US/Eastern').format('ddd, MMM D h:mma')
+
+
+def datetime_custom(date_str):
+    dt = arrow.get(date_str)
+    return dt.to('US/Eastern').format('YYYY-MM-DD HH:mm')
+
+
+def datetime_date(date_str):
+    """
+    Date part of the datetime string
+    """
+    dt = arrow.get(date_str)
+    return dt.to('US/Eastern').format('YYYY-MM-DD')
+
+
+def datetime_time(date_str):
+    """
+    Time part of the datetime string
+    """
+    dt = arrow.get(date_str)
+    return dt.to('US/Eastern').format('HH:mm')
 
 
 def serialize(key):
