@@ -128,13 +128,18 @@ def resource_data():
 def event_modify():
     """
     Application logic for moving an event to a different time/day/resource.
+    Called by `eventResize` and `eventDrop` fullcalendar callbacks
+
     Payload should contain the following attributes:
         PK: Primary key of the event,
         SK: Sort key of the event,
         uni: Event owner's uni,
         start: Start time of the modified event,
-        end: End time of the modified event,
-        newResourceId: Resource of ID of the modified event,
+        end: End time of the modified event
+
+    If the event is moved to a new resource, the payload should also contain:
+        newResourceId: Resource ID of the modified event,
+        newResourceName: Resource name of the modified event
     """
 
     data = request.json
@@ -178,7 +183,8 @@ def event_modify():
 @bp.route('/event_create', methods=['POST'])
 def event_create():
     """
-    Server response to the `select` fullcalendar callback.
+    Application logic for creating an event.
+    Called by the `select` fullcalendar callback.
 
     Payload should contain the following attributes:
         - start: event start timestamp
