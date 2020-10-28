@@ -1,0 +1,86 @@
+{%- extends "base.html" %}
+{%- block title %}Room Scheduler - User Management{%- endblock title %}
+
+{%- block css %}
+{{ super() }}
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/bs4/dt-1.10.22/b-1.6.4/b-html5-1.6.4/r-2.2.6/sp-1.2.0/sl-1.3.1/datatables.min.css"/>
+{%- endblock %}
+
+{%- block content %}
+<div class="my-4 row">
+<div class="col-lg">
+    <table id="users" class="table table-striped table-bordered" style="width:100%">
+        <thead>
+            <tr>
+                <th>UNI</th>
+                <th>First Name</th>
+                <th>Last Name</th>
+                <th>Type/Role</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in users %}
+            <tr>
+                <td>{{ u['PK'].split('#')[1] }}</td>
+                <td>{{ u['first_name']}}</td>
+                <td>{{ u['last_name']}}</td>
+                <td>{{ u['type']}}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+<div class="col-lg">
+    <form id="batch">
+        <div class="form-group">
+            <label for="batch-add-input"><h4>Batch add</h4>Enter one user per line in the comma-separated format: UNI (required), first_name, last_name, type/role.<br><b>Note</b>: users with type/role of Chair or Staff receive access to department admin pages.</label>
+            <textarea class="form-control" id="batch-add-input" name="add" rows="8"></textarea>
+            <label for="batch-remove-input"><h4 class="mt-2">Batch remove</h4>Enter UNIs only, one per line</label>
+            <textarea class="form-control" id="batch-remove-input" name="remove" rows="8"></textarea>
+        </div>
+        <button id="batch-btn" type="submit" class="btn btn-primary">Add/Remove Users</button>
+    </form>
+    <div id="batch-output" class="mt-2"></div>
+</div>
+</div>
+{%- endblock %}
+
+{%- block scripts %}
+{{ super() }}
+<script type="text/javascript" src="https://cdn.datatables.net/v/bs4/dt-1.10.22/b-1.6.4/b-html5-1.6.4/r-2.2.6/sp-1.2.0/sl-1.3.1/datatables.min.js"></script>
+<script>
+    $(document).ready(function() {
+        $('#users').DataTable({
+            dom: '<"row"<"col-sm-12 col-md-2"B><"col-sm-12 col-md-3"l><"col-sm-12 col-md-7"f>>rt<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
+            responsive: true,
+            pageLength: 10,
+            buttons: [
+                {
+                    extend: 'csvHtml5',
+                    text: 'Save as CSV',
+                    title: 'Room_Booking_Users_Export_' + new Date().toISOString()
+                },
+            ]
+        });
+    } );
+</script>
+<script>
+    function batchSubmit(event) {
+        event.preventDefault();
+        var request = new XMLHttpRequest();
+        request.addEventListener('load', batchShow);
+        request.open('POST', {{ url_for('dept_admin.process_batch') | tojson }});
+        request.send(new FormData(this));
+    }
+
+    function batchShow() {
+        var data = JSON.parse(this.responseText);
+        var status = JSON.parse(this.status);
+        var output = document.getElementById('batch-output');
+        output.innerText = data.output;
+    }
+    
+    var formRemove = document.getElementById('batch');
+    formRemove.addEventListener('submit', batchSubmit);
+</script>
+{%- endblock %}

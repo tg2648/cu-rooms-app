@@ -44,7 +44,6 @@ class ProdConfig(Config):
 
     CAS_SERVER = os.getenv('CAS_SERVER_PROD')
     CAS_AFTER_LOGOUT = os.getenv('CAS_AFTER_LOGOUT_PROD')
-    DB_USERS = os.getenv('DB_USERS_PROD')
     DB_ACCESS_LOGS = os.getenv('DB_ACCESS_LOGS_PROD')
     DB_SCHEDULING = os.getenv('DB_SCHEDULING_PROD')
 
@@ -57,6 +56,5 @@ class DevConfig(Config):
 
     CAS_SERVER = os.getenv('CAS_SERVER_DEV')
     CAS_AFTER_LOGOUT = os.getenv('CAS_AFTER_LOGOUT_DEV')
-    DB_USERS = os.getenv('DB_USERS_DEV')
     DB_ACCESS_LOGS = os.getenv('DB_ACCESS_LOGS_DEV')
     DB_SCHEDULING = os.getenv('DB_SCHEDULING_DEV')

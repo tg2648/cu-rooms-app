@@ -119,7 +119,7 @@ class User(object):
             )
 
             try:
-                return response['Items'][0]['type'] in ['Staff', 'Chair']
+                return response['Items'][0]['type'].lower() in ['staff', 'chair']
             except IndexError:
                 return False
 

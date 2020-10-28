@@ -49,8 +49,14 @@
     <div class="collapse navbar-collapse" id="navbarColor02">
         {% if session.CAS_USERNAME | user_is_dept_admin %}
             <ul class="navbar-nav mr-auto">
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('dept_admin.index') }}">Dept. Admin</a>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" id="navbarDropdown" role="button" data-toggle="dropdown">
+                      Dept. Admin
+                    </a>
+                    <div class="dropdown-menu">
+                      <a class="dropdown-item" href="{{ url_for('dept_admin.index') }}">Booking List</a>
+                      <a class="dropdown-item" href="{{ url_for('dept_admin.user_management') }}">User Management</a>
+                    </div>
                 </li>
             </ul>
         {% endif %}
