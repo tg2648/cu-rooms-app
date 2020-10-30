@@ -1,0 +1,36 @@
+{%- extends "user_management.html" %}
+
+{%- block navlinks %}
+<ul class="navbar-nav mr-auto">
+    <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" id="navbarDropdown" role="button" data-toggle="dropdown">
+            Dept. Admin
+        </a>
+        <div class="dropdown-menu">
+            <a class="dropdown-item" href="{{ url_for('sample.dept_admin') }}">Booking List</a>
+            <a class="dropdown-item" href="{{ url_for('sample.user_management') }}">User Management</a>
+        </div>
+    </li>
+</ul>
+{%- endblock %}
+
+{%- block content %}
+<div class="my-4">
+    <div class="alert alert-info">
+        <strong>Heads up!</strong> This is a sample of the room-booking application.
+    </div>
+</div>
+{{ super() }}
+{%- endblock %}
+
+{%- block form_scripts %}
+<script>
+    function batchSubmit(event) {
+        event.preventDefault();
+        var output = document.getElementById('batch-output');
+        output.innerText = 'Imagine the request was processed...';
+    }
+    var form = document.getElementById('batch');
+    form.addEventListener('submit', batchSubmit);
+</script>
+{%- endblock %}

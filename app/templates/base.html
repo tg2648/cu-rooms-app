@@ -47,19 +47,21 @@
     </button>
 
     <div class="collapse navbar-collapse" id="navbarColor02">
+        {%- block navlinks %}
         {% if session.CAS_USERNAME | user_is_dept_admin %}
-            <ul class="navbar-nav mr-auto">
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" id="navbarDropdown" role="button" data-toggle="dropdown">
-                      Dept. Admin
-                    </a>
-                    <div class="dropdown-menu">
-                      <a class="dropdown-item" href="{{ url_for('dept_admin.index') }}">Booking List</a>
-                      <a class="dropdown-item" href="{{ url_for('dept_admin.user_management') }}">User Management</a>
-                    </div>
-                </li>
-            </ul>
+        <ul class="navbar-nav mr-auto">
+            <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" id="navbarDropdown" role="button" data-toggle="dropdown">
+                    Dept. Admin
+                </a>
+                <div class="dropdown-menu">
+                    <a class="dropdown-item" href="{{ url_for('dept_admin.index') }}">Booking List</a>
+                    <a class="dropdown-item" href="{{ url_for('dept_admin.user_management') }}">User Management</a>
+                </div>
+            </li>
+        </ul>
         {% endif %}
+        {%- endblock %}
         {% if 'CAS_USERNAME' in session %}
             <span class="navbar-text ml-auto">
                 Signed in as {{ session.CAS_USERNAME }} 

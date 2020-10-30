@@ -1,0 +1,24 @@
+{%- extends "scheduler.html" %}
+
+{%- block navlinks %}
+<ul class="navbar-nav mr-auto">
+    <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" id="navbarDropdown" role="button" data-toggle="dropdown">
+            Dept. Admin
+        </a>
+        <div class="dropdown-menu">
+            <a class="dropdown-item" href="{{ url_for('sample.dept_admin') }}">Booking List</a>
+            <a class="dropdown-item" href="{{ url_for('sample.user_management') }}">User Management</a>
+        </div>
+    </li>
+</ul>
+{%- endblock %}
+
+{%- block content %}
+<div class="my-4">
+    <div class="alert alert-info">
+        <strong>Heads up!</strong> This is a sample of the room-booking application.
+    </div>
+</div>
+{{ super() }}
+{%- endblock %}

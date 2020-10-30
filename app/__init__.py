@@ -76,8 +76,10 @@ def register_blueprints(server):
     from app.views import scheduler
     from app.views import admin
     from app.views import dept_admin
+    from app.views import sample
 
     # server.register_blueprint(home.bp)
     server.register_blueprint(scheduler.bp)
     server.register_blueprint(admin.bp)
     server.register_blueprint(dept_admin.bp)
+    server.register_blueprint(sample.bp)

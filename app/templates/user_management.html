@@ -64,6 +64,7 @@
         });
     } );
 </script>
+{%- block form_scripts %}
 <script>
     function batchSubmit(event) {
         event.preventDefault();
@@ -80,7 +81,8 @@
         output.innerText = data.output;
     }
     
-    var formRemove = document.getElementById('batch');
-    formRemove.addEventListener('submit', batchSubmit);
+    var form = document.getElementById('batch');
+    form.addEventListener('submit', batchSubmit);
 </script>
+{%- endblock %}
 {%- endblock %}
